@@ -2,15 +2,22 @@ So far tested only on sprite resources
 
 # Usage
 urls file structure:
+1. main url
+2. console
+3. list of urls (1 per line)
+### Example
 ```
-main url (f.e https://www.spriters-resource.com/)
-console (f.e mobile/)
-list of urls (1 per line) (f.e. finalfantasybraveexvius/)
+https://www.spriters-resource.com/
+mobile/
+finalfantasybraveexvius/
 ```
 # TODO
-* [ ] Nice Readme
+* [x] Nice Readme
 * [ ] Code cleanup
-* [x] If signle sprite - save in single/
-* [ ] arguments
+* [x] If single sprite - save in single/
+* [ ] Arguments
 * [ ] Extract archives
-* [ ] If filename exist (in case of same names like in ffsmthn) - increment number
+* [ ] If filename exist (in case of same names) - increment number
+* [ ] Check for link validity
+* [ ] Retry on connection error
+* [ ] Ignore categories
