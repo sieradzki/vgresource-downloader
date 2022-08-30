@@ -8,32 +8,7 @@ import requests
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 
-###############################
-# import argparse
-
-# parser = argparse.ArgumentParser(description='Download resources from VG sites')
-# # Required positional argument
-
-# parser.add_argument('site', type=str,
-#                     help='spriteresources / modelresources / textureresources')
-
-# parser.add_argument('mode', type=str,
-#                     help='console / game / letter')
-
-# # Optional positional argument
-# parser.add_argument('opt_pos_arg', type=int, nargs='?',
-#                     help='An optional integer positional argument')
-
-# # Optional argument
-# parser.add_argument('--opt_arg', type=int,
-#                     help='An optional integer argument')
-
-# # Switch
-# parser.add_argument('--switch', action='store_true',
-#                     help='A boolean switch')
-
-# args = parser.parse_args()
-###############################
+import argparse
 
 
 def scrape_console(base_url, console_url):
@@ -80,10 +55,20 @@ def scrape_game(urls_file):
 
     BASE_URL = paths.pop(0)
     CONSOLE = paths.pop(0)
-    SINGLE = False
 
-    print(f"Scraping {len(paths)} games...")
-    for j, path in enumerate(paths):
+    save_filename = f"{console.split('/')[0]}_done.txt"
+    last = 0
+    if os.path.isfile(save_filename):
+        print("Found save file")
+        f = open(save_filename, "r")
+        last = int(f.readline())
+        last += 1
+        f.close()
+        print(f"Continuing from {last}: {paths[last]}")
+
+    print(f"Scraping {len(paths-last)} games...")
+    for j, path in enumerate(paths[last:]):
+        SINGLE = False
         console = CONSOLE
         print(f"\n--- Processing [{j+1}/{len(paths)}] {path} ---")
         url = urljoin(BASE_URL, console)
@@ -129,8 +114,8 @@ def scrape_game(urls_file):
         for name, dlinks in tqdm(download_dict.items(), colour='#02ff20'):
             for dl in dlinks:
                 remotefile = urlopen(dl)
-                blah = remotefile.info()['Content-Disposition']
-                value, params = cgi.parse_header(blah)
+                content = remotefile.info()['Content-Disposition']
+                _, params = cgi.parse_header(content)
                 filename = params["filename"]
                 if SINGLE:
                     Path(os.path.join("single", console)).mkdir(
@@ -142,11 +127,68 @@ def scrape_game(urls_file):
                     fullpath = os.path.join(console, path, name, filename)
                 urlretrieve(dl, fullpath)
 
+        f = open(save_filename, "w")
+        f.write(f"{j}")
+        f.close()
+
     print("Finished\n")
 
 
 def main():
-    scrape_game("custom_edited.txt")
+    # This argument parsing is probably bad so research it later
+    parser = argparse.ArgumentParser(
+        description='Download resources from VG sites\n Example usage: python scraper.py site=1 mode=console --console=mobile', formatter_class=argparse.RawTextHelpFormatter)
+
+    parser.add_argument('site', type=int,
+                        help='sprites-resource: 1\nmodel-resource: 2\ntexture-resource: 3\nsound-resource: 4')
+
+    parser.add_argument('mode', type=str,
+                        help='console / game')
+
+    parser.add_argument('--urls', type=str,
+                        help='Path to file containing urls. Use with mode=game.')
+    parser.add_argument('--console', type=str,
+                        help='Console name. Use with mode=console.')
+    # parser.add_argument('--single', type=bool,
+    #                     help='Save single files in "single/" directory to avoid creating many unnecessary folders.')
+    # parser.add_argument('--ignore-categories', type=str,
+    #                     help='Ignore specified categories. Separate categories with ",".')
+    args = parser.parse_args()
+
+    site = args.site
+    mode = args.mode
+
+    if mode == 'console':
+        if args.console:
+            console = args.console
+        else:
+            print("Missing argument: console.")
+            return
+        if site == 1:
+            base_url = "https://www.spriters-resource.com/"
+        elif site == 2:
+            base_url = "https://www.models-resource.com/"
+        elif site == 3:
+            base_url = "https://www.textures-resource.com/"
+        elif site == 4:
+            base_url = "https://www.sounds-resource.com/"
+        else:
+            print(
+                f"Bad argument: site. Provided value: {site}. Excpected: 1 / 2 / 3 / 4")
+        scrape_console(base_url, console)
+    elif mode == 'game':
+        if args.urls:
+            urls = args.urls
+        else:
+            print("Missing argument: urls.")
+            return
+        if os.path.isfile(urls):
+            scrape_game(urls)
+        else:
+            print(f"File {urls} doesn't exist.")
+    else:
+        print(
+            f"Bad argument: mode. Provided value: {mode}. Excpected: console / game")
 
 
 if __name__ == main():
