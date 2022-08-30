@@ -6,18 +6,21 @@ urls file structure:
 2. console
 3. list of urls (1 per line)
 ### Example
+console url must end with '/' for now or it will crash
 ```
 https://www.spriters-resource.com/
 mobile/
 finalfantasybraveexvius/
 ```
 # TODO
-* [x] Nice Readme
-* [ ] Code cleanup
 * [x] If single sprite - save in single/
+* [x] Whole console scraping
+* [ ] Check for link validity !!! 
+* [ ] Error reporting (and handling)
+* [ ] Continue from last position after crash
+* [ ] Ignore categories
 * [ ] Arguments
 * [ ] Extract archives
 * [ ] If filename exist (in case of same names) - increment number
-* [ ] Check for link validity
-* [ ] Retry on connection error
-* [ ] Ignore categories
+* [ ] Code cleanup
+* [ ] Nice(r) Readme
