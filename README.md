@@ -24,6 +24,7 @@ finalfantasybraveexvius/
 # TODO
 * [x] If single sprite - save in single/
 * [x] Whole console scraping
+* [ ] Why do I have to provide site as arguments AND in urls file ?? 
 * [ ] Provide option to scrape single game with game=game_name
 * [ ] Check for link validity !!! 
 * [ ] Error reporting (and handling)

@@ -56,21 +56,20 @@ def scrape_game(urls_file):
     BASE_URL = paths.pop(0)
     CONSOLE = paths.pop(0)
 
-    save_filename = f"{console.split('/')[0]}_done.txt"
+    save_filename = f"{CONSOLE.split('/')[0]}_done.txt"
     last = 0
     if os.path.isfile(save_filename):
         print("Found save file")
         f = open(save_filename, "r")
         last = int(f.readline())
-        last += 1
         f.close()
-        print(f"Continuing from {last}: {paths[last]}")
+        print(f"Continuing from {last+1}: {paths[last]}")
 
-    print(f"Scraping {len(paths-last)} games...")
+    print(f"Scraping {len(paths)-last} games...")
     for j, path in enumerate(paths[last:]):
         SINGLE = False
         console = CONSOLE
-        print(f"\n--- Processing [{j+1}/{len(paths)}] {path} ---")
+        print(f"\n--- Processing [{j+1+last}/{len(paths)}] {path} ---")
         url = urljoin(BASE_URL, console)
         url = urljoin(url, path)
         r = requests.get(url)
@@ -128,7 +127,7 @@ def scrape_game(urls_file):
                 urlretrieve(dl, fullpath)
 
         f = open(save_filename, "w")
-        f.write(f"{j}")
+        f.write(f"{j+last}")
         f.close()
 
     print("Finished\n")
@@ -137,18 +136,22 @@ def scrape_game(urls_file):
 def main():
     # This argument parsing is probably bad so research it later
     parser = argparse.ArgumentParser(
-        description='Download resources from VG sites\n Example usage: python scraper.py site=1 mode=console --console=mobile', formatter_class=argparse.RawTextHelpFormatter)
+        description='Download resources from VG sites\n Example usage: python scraper.py 1 console --console=mobile', formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('site', type=int,
                         help='sprites-resource: 1\nmodel-resource: 2\ntexture-resource: 3\nsound-resource: 4')
 
     parser.add_argument('mode', type=str,
-                        help='console / game')
+                        help='console / game') # / genre
 
     parser.add_argument('--urls', type=str,
                         help='Path to file containing urls. Use with mode=game.')
     parser.add_argument('--console', type=str,
                         help='Console name. Use with mode=console.')
+
+    # parser.add_argument('--genre', type=str,
+    #                     help='Genre name. Use with mode=console.') # Should be simple to implement. Just add genre/ to base url
+
     # parser.add_argument('--single', type=bool,
     #                     help='Save single files in "single/" directory to avoid creating many unnecessary folders.')
     # parser.add_argument('--ignore-categories', type=str,
