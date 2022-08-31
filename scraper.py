@@ -1,6 +1,8 @@
+import argparse
 import cgi
 import os
 from pathlib import Path
+from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin
 from urllib.request import urlopen, urlretrieve
 
@@ -8,19 +10,26 @@ import requests
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 
-import argparse
-
 
 def scrape_console(base_url, console_url):
     url = urljoin(base_url, console_url)
     r = requests.get(url)
+    if r.status_code != 200:
+        print(
+            f"Error connecting to {url}. Check link validity or your internet connection.")
+        return
     soup = BeautifulSoup(r.text, "html.parser")
     letters = soup.find('div', {'id': 'letters'})
     letters_links = letters.find_all('a')
     proper_divs = []
     print(f"Getting game links for {console_url}")
     for link in tqdm(letters_links):
-        page_r = requests.get(urljoin(base_url, link.get('href')))
+        page_url = urljoin(base_url, link.get('href'))
+        page_r = requests.get(page_url)
+        if page_r.status_code != 200:
+            print(
+                f"Error connecting to {page_url}. Check link validity or your internet connection.")
+            return
         page_soup = BeautifulSoup(page_r.text, "html.parser")
         content = page_soup.find('div', {'id': 'content'})
         content_div = content.find_all('div')
@@ -38,22 +47,20 @@ def scrape_console(base_url, console_url):
 
     filename = f"{console_url}.txt"
     f = open(filename, "w")
-    f.write(f"{base_url}\n")
     f.write(f"{console_url}/\n")
     for path in paths:
         f.write(f"{path}/\n")
     f.close()
 
-    scrape_game(filename)
+    scrape_game(base_url, filename)
 
 
-def scrape_game(urls_file):
+def scrape_game(base_url, urls_file):
     paths = []
     with open(urls_file) as file:
         for line in file:
             paths.append(line.rstrip())
 
-    BASE_URL = paths.pop(0)
     CONSOLE = paths.pop(0)
 
     save_filename = f"{CONSOLE.split('/')[0]}_done.txt"
@@ -62,17 +69,23 @@ def scrape_game(urls_file):
         print("Found save file")
         f = open(save_filename, "r")
         last = int(f.readline())
+        last += 1
         f.close()
-        print(f"Continuing from {last+1}: {paths[last]}")
+        print(f"Continuing from {last}: {paths[last]}")
 
     print(f"Scraping {len(paths)-last} games...")
-    for j, path in enumerate(paths[last:]):
+    for j, path in enumerate((pbar := tqdm(paths[last:], unit='game', colour='#253fff'))):
+        pbar.set_description(f"{path}")
+
         SINGLE = False
         console = CONSOLE
-        print(f"\n--- Processing [{j+1+last}/{len(paths)}] {path} ---")
-        url = urljoin(BASE_URL, console)
+        url = urljoin(base_url, console)
         url = urljoin(url, path)
         r = requests.get(url)
+        if r.status_code != 200:
+            print(
+                f"Error connecting to {url}. Check link validity or your internet connection.")
+            return
         soup = BeautifulSoup(r.text, "html.parser")
 
         titles = []
@@ -90,29 +103,40 @@ def scrape_game(urls_file):
             title = titles.pop(0)
             sheet_dict[title] = []
             for link in links:
-                sheet_dict[title].append((BASE_URL + link.get('href')))
+                sheet_dict[title].append((base_url + link.get('href')))
                 sheet_counter += 1
 
-        print(
-            f"Found {len(sheets)} categories and {sheet_counter} sprite sheets. Getting download links...")
+        # print(
+        #     f"Found {len(sheets)} categories and {sheet_counter} sprite sheets. Getting download links...")
         if sheet_counter == 1:
             SINGLE = True
 
         download_dict = {}
-        for sheet_name, sheet_pages in tqdm(sheet_dict.items(), colour='#00f0ff'):
+        for sheet_name, sheet_pages in sheet_dict.items():
             download_dict[sheet_name] = []
             for sheet_page in sheet_pages:
                 sheet_r = requests.get(sheet_page)
+                if sheet_r.status_code != 200:
+                    print(
+                        f"Error connecting to {sheet_page}. Check link validity or your internet connection.")
+                    return
                 sheet_soup = BeautifulSoup(sheet_r.content, "html.parser")
                 download_link = sheet_soup.find("tr", class_="rowfooter")
                 href_link = download_link.find('a').get('href')
-                dlink = urljoin(BASE_URL, href_link)
+                dlink = urljoin(base_url, href_link)
                 download_dict[sheet_name].append(dlink.strip())
 
-        print("Downloading...")
-        for name, dlinks in tqdm(download_dict.items(), colour='#02ff20'):
+        # print("Downloading...")
+        for name, dlinks in download_dict.items():
             for dl in dlinks:
-                remotefile = urlopen(dl)
+                try:
+                    remotefile = urlopen(dl)
+                except HTTPError as e:
+                    # do something
+                    print('Error code: ', e.code)
+                except URLError as e:
+                    # do something (set req to blank)
+                    print('Reason: ', e.reason)
                 content = remotefile.info()['Content-Disposition']
                 _, params = cgi.parse_header(content)
                 filename = params["filename"]
@@ -134,7 +158,6 @@ def scrape_game(urls_file):
 
 
 def main():
-    # This argument parsing is probably bad so research it later
     parser = argparse.ArgumentParser(
         description='Download resources from VG sites\n Example usage: python scraper.py 1 console --console=mobile', formatter_class=argparse.RawTextHelpFormatter)
 
@@ -142,7 +165,7 @@ def main():
                         help='sprites-resource: 1\nmodel-resource: 2\ntexture-resource: 3\nsound-resource: 4')
 
     parser.add_argument('mode', type=str,
-                        help='console / game') # / genre
+                        help='console / game')  # / genre
 
     parser.add_argument('--urls', type=str,
                         help='Path to file containing urls. Use with mode=game.')
@@ -159,6 +182,18 @@ def main():
     args = parser.parse_args()
 
     site = args.site
+    if site == 1:
+        base_url = "https://www.spriters-resource.com/"
+    elif site == 2:
+        base_url = "https://www.models-resource.com/"
+    elif site == 3:
+        base_url = "https://www.textures-resource.com/"
+    elif site == 4:
+        base_url = "https://www.sounds-resource.com/"
+    else:
+        print(
+            f"Bad argument: site. Provided value: {site}. Excpected: 1 / 2 / 3 / 4")
+        return
     mode = args.mode
 
     if mode == 'console':
@@ -167,17 +202,6 @@ def main():
         else:
             print("Missing argument: console.")
             return
-        if site == 1:
-            base_url = "https://www.spriters-resource.com/"
-        elif site == 2:
-            base_url = "https://www.models-resource.com/"
-        elif site == 3:
-            base_url = "https://www.textures-resource.com/"
-        elif site == 4:
-            base_url = "https://www.sounds-resource.com/"
-        else:
-            print(
-                f"Bad argument: site. Provided value: {site}. Excpected: 1 / 2 / 3 / 4")
         scrape_console(base_url, console)
     elif mode == 'game':
         if args.urls:
@@ -186,7 +210,7 @@ def main():
             print("Missing argument: urls.")
             return
         if os.path.isfile(urls):
-            scrape_game(urls)
+            scrape_game(base_url, urls)
         else:
             print(f"File {urls} doesn't exist.")
     else:
