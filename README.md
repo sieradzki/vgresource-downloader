@@ -1,9 +1,12 @@
 Work in progress.
 So far tested only on sprite resources
 
-# Requirements
-python  
-tqdm
+# Setup
+1. Install python
+2. Install required libraries
+```
+pip install -r requirements.txt
+```
 # Usage
 ```console
 python scraper.py site mode --arguments
