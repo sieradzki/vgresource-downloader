@@ -1,6 +1,3 @@
-Work in progress.
-So far tested only on sprite resources
-
 # Setup
 1. Install python
 2. Install required libraries
